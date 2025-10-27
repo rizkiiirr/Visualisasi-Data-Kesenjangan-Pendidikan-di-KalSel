@@ -1,0 +1,43 @@
+kabupaten_kota;jumlah_sekolah_sd_negeri;jumlah_sekolah_sd_swasta;jumlah_sekolah_sd_negeriswasta;jumlah_guru_sd_negeri;jumlah_guru_sd_swasta;jumlah_guru_sd_negeriswasta;jumlah_murid_sd_negeri;jumlah_murid_sd_swasta;jumlah_murid_sd_negeriswasta;jenjang;jumlah_sekolah_smp_negeri;jumlah_sekolah_smp_swasta;jumlah_sekolah_smp_negeriswasta;jumlah_guru_smp_negeri;jumlah_guru_smp_swasta;jumlah_guru_smp_negeriswasta;jumlah_murid_smp_negeri;jumlah_murid_smp_swasta;jumlah_murid_smp_negeriswasta;jumlah_sekolah_sma_negeri;jumlah_sekolah_sma_swasta;jumlah_sekolah_sma_negeriswasta;jumlah_guru_sma_negeri;jumlah_guru_sma_swasta;jumlah_guru_sma_negeriswasta;jumlah_murid_sma_negeri;jumlah_murid_sma_swasta;jumlah_murid_sma_negeriswasta
+Tanah Laut;235;12;247;2409;132;2541;30324;2227;32551;SD;;;;;;;;;;;;;;;;;;
+Kota Baru;226;32;258;2479;306;2785;29762;4532;34294;SD;;;;;;;;;;;;;;;;;;
+Banjar;360;13;373;3438;121;3559;39224;2607;41831;SD;;;;;;;;;;;;;;;;;;
+Barito Kuala;270;4;274;2532;35;2567;27520;536;28056;SD;;;;;;;;;;;;;;;;;;
+Tapin;175;3;178;1640;44;1684;16737;732;17469;SD;;;;;;;;;;;;;;;;;;
+Hulu Sungai Selatan;211;3;214;1847;40;1887;15235;649;15884;SD;;;;;;;;;;;;;;;;;;
+Hulu Sungai Tengah;248;5;253;2233;71;2304;17755;1152;18907;SD;;;;;;;;;;;;;;;;;;
+Hulu Sungai Utara;177;7;184;1502;89;1591;11090;1308;12398;SD;;;;;;;;;;;;;;;;;;
+Tabalong;212;9;221;2065;128;2193;22069;2743;24812;SD;;;;;;;;;;;;;;;;;;
+Tanah Bumbu;175;20;195;2219;231;2450;33562;3361;36923;SD;;;;;;;;;;;;;;;;;;
+Balangan;172;4;176;1478;57;1535;10405;739;11144;SD;;;;;;;;;;;;;;;;;;
+Kota Banjarmasin;208;50;258;2861;767;3628;41337;9738;51075;SD;;;;;;;;;;;;;;;;;;
+Kota Banjar Baru;68;24;92;1298;392;1690;20329;5392;25721;SD;;;;;;;;;;;;;;;;;;
+Kalimantan Selatan;2737;186;2923;28001;2413;30414;315349;35716;351065;SD;;;;;;;;;;;;;;;;;;
+Tanah Laut;;;;;;;;;;SMP;49;9;58;771;78;849;7991;1422;9413;;;;;;;;;
+Kota Baru;;;;;;;;;;SMP;54;10;64;850;98;948;10192;1265;11457;;;;;;;;;
+Banjar;;;;;;;;;;SMP;66;10;76;1023;144;1167;11591;1712;13303;;;;;;;;;
+Barito Kuala;;;;;;;;;;SMP;58;4;62;759;43;802;8529;329;8858;;;;;;;;;
+Tapin;;;;;;;;;;SMP;22;6;28;321;41;362;3705;470;4175;;;;;;;;;
+Hulu Sungai Selatan;;;;;;;;;;SMP;32;5;37;455;56;511;5468;618;6086;;;;;;;;;
+Hulu Sungai Tengah;;;;;;;;;;SMP;33;2;35;452;19;471;4018;245;4263;;;;;;;;;
+Hulu Sungai Utara;;;;;;;;;;SMP;28;3;31;355;34;389;2815;487;3302;;;;;;;;;
+Tabalong;;;;;;;;;;SMP;55;6;61;647;62;709;5808;1004;6812;;;;;;;;;
+Tanah Bumbu;;;;;;;;;;SMP;52;15;67;856;118;974;11221;1471;12692;;;;;;;;;
+Balangan;;;;;;;;;;SMP;24;2;26;315;16;331;2371;107;2478;;;;;;;;;
+Kota Banjarmasin;;;;;;;;;;SMP;35;28;63;1178;295;1473;19154;2767;21921;;;;;;;;;
+Kota Banjar Baru;;;;;;;;;;SMP;14;11;25;507;166;673;8225;1946;10171;;;;;;;;;
+Kalimantan Selatan;;;;;;;;;;SMP;522;111;633;8489;1170;9659;101088;13843;114931;;;;;;;;;
+Tanah Laut;;;;;;;;;;SMA;;;;;;;;;;13;7;20;381;56;437;5934;684;6618
+Kota Baru;;;;;;;;;;SMA;;;;;;;;;;22;8;30;471;90;561;7087;778;7865
+Banjar;;;;;;;;;;SMA;;;;;;;;;;13;9;22;419;118;537;5834;1451;7285
+Barito Kuala;;;;;;;;;;SMA;;;;;;;;;;16;4;20;424;46;470;5719;314;6033
+Tapin;;;;;;;;;;SMA;;;;;;;;;;7;2;9;152;8;160;2079;221;2300
+Hulu Sungai Selatan;;;;;;;;;;SMA;;;;;;;;;;7;2;9;215;24;239;2843;258;3101
+Hulu Sungai Tengah;;;;;;;;;;SMA;;;;;;;;;;9;1;10;303;5;308;3989;46;4035
+Hulu Sungai Utara;;;;;;;;;;SMA;;;;;;;;;;6;2;8;160;24;184;1759;121;1880
+Tabalong;;;;;;;;;;SMA;;;;;;;;;;11;-;11;297;-;297;3486;-;3486
+Tanah Bumbu;;;;;;;;;;SMA;;;;;;;;;;12;3;15;364;38;402;5663;311;5974
+Balangan;;;;;;;;;;SMA;;;;;;;;;;9;2;11;189;25;214;2274;74;2348
+Kota Banjarmasin;;;;;;;;;;SMA;;;;;;;;;;13;17;30;660;207;867;11497;2244;13741
+Kota Banjar Baru;;;;;;;;;;SMA;;;;;;;;;;5;10;15;269;107;376;4441;924;5365
+Kalimantan Selatan;;;;;;;;;;SMA;;;;;;;;;;143;67;210;4304;748;5052;62605;7426;70031
