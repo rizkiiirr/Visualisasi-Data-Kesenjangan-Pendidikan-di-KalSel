@@ -206,6 +206,47 @@ def load_data_sekolah(path):
     
     return df_long_sekolah
 
+# Fungsi untuk memuat dan menghitung rasio murid per SEKOLAH
+@st.cache_data
+def load_data_rasio_sekolah(path):
+    df_r = pd.read_csv(path, delimiter=';')
+    df_r.columns = df_r.columns.str.strip().str.lower()
+    
+    # Hapus baris kosong dan total provinsi
+    df_r = df_r.dropna(subset=['kabupaten_kota'])
+    df_r = df_r[~df_r['kabupaten_kota'].astype(str).str.contains('selatan', case=False, na=False)]
+    
+    # Hitung rasio murid per SEKOLAH
+    df_r['rasio_ss_sd'] = df_r['jumlah_murid_sd_negeriswasta'] / df_r['jumlah_sekolah_sd_negeriswasta']
+    df_r['rasio_ss_smp'] = df_r['jumlah_murid_smp_negeriswasta'] / df_r['jumlah_sekolah_smp_negeriswasta']
+    df_r['rasio_ss_sma'] = df_r['jumlah_murid_sma_negeriswasta'] / df_r['jumlah_sekolah_sma_negeriswasta']
+    
+    # Ubah ke format long (1 baris = 1 wilayah + jenjang)
+    df_long = pd.melt(
+        df_r,
+        id_vars=['kabupaten_kota'],
+        value_vars=['rasio_ss_sd', 'rasio_ss_smp', 'rasio_ss_sma'],
+        var_name='Jenjang',
+        value_name='Rasio_Siswa_Sekolah' # Nama metrik baru
+    )
+    
+    # Bersihkan nama jenjang
+    df_long['Jenjang'] = df_long['Jenjang'].replace({
+        'rasio_ss_sd': 'SD',
+        'rasio_ss_smp': 'SMP',
+        'rasio_ss_sma': 'SMA'
+    })
+    
+    # Ganti nama kolom agar seragam
+    df_long = df_long.rename(columns={'kabupaten_kota': 'Wilayah'})
+    df_long['Wilayah'] = df_long['Wilayah'].str.upper().str.strip()
+    df_long['Rasio_Siswa_Sekolah'] = df_long['Rasio_Siswa_Sekolah'].round(2)
+    
+    # Hapus NaN yang mungkin terjadi jika ada pembagian 0/0
+    df_long = df_long.dropna(subset=['Rasio_Siswa_Sekolah'])
+    
+    return df_long
+
 # --- (Akhir dari blok 1) ---
 
 # --- Load kedua dataset ---
@@ -216,21 +257,21 @@ DATA_RLS = 'Data_RLS_Bersih.csv'
 df_apm = load_data_apm(DATA_APM)
 df_rasio = load_data_rasio(DATA_RASIO)
 df_rls = load_data_rls(DATA_RLS)
-df_sekolah = load_data_sekolah(DATA_RASIO)
+df_rasio_sekolah = load_data_rasio_sekolah(DATA_RASIO)
 
 # --- Gabungkan Data ---
 DATA_LOADED_SUCCESS = False
-if not df_apm.empty and not df_rasio.empty and not df_rls.empty and not df_sekolah.empty:
+if not df_apm.empty and not df_rasio.empty and not df_rls.empty and not df_rasio_sekolah.empty:
     # Gabungkan APM + Rasio
     df_master = pd.merge(df_apm, df_rasio, on=['Wilayah', 'Jenjang'], how='left')
     # Gabungkan dengan RLS (hanya berdasarkan Wilayah)
     df_master = pd.merge(df_master, df_rls, on='Wilayah', how='left')
     # Gabungkan dengan Sekolah (hanya berdasarkan Wilayah dan Jenjang)
-    df_master = pd.merge(df_master, df_sekolah, on=['Wilayah', 'Jenjang'], how='left')
+    df_master = pd.merge(df_master, df_rasio_sekolah, on=['Wilayah', 'Jenjang'], how='left')
     DATA_LOADED_SUCCESS = True
 
     # Validasi setelah merge
-    required_master_cols = ['Wilayah', 'Jenjang', 'Nilai_APM', 'Rasio Murid-per-Guru', 'Nilai_RLS']
+    required_master_cols = ['Wilayah', 'Jenjang', 'Nilai_APM', 'Rasio Murid-per-Guru', 'Nilai_RLS', 'Rasio_Siswa_Sekolah']
     missing_master_cols = [col for col in required_master_cols if col not in df_master.columns]
   
 # ====================================================================
@@ -281,24 +322,14 @@ st.sidebar.info(
 df_filtered = df_apm[df_apm['Jenjang'] == pilih_jenjang]
 df_rasio_filtered = df_rasio[df_rasio['Jenjang'] == pilih_jenjang]
 df_rls_unique = df_master[['Wilayah', 'Nilai_RLS']].drop_duplicates().dropna()
-jenjang_sekolah_map = {
-    'SD': 'Jumlah SD',
-    'SMP': 'Jumlah SMP',
-    'SMA': 'Jumlah SMA'
-}
-jenjang_terpilih_sekolah = jenjang_sekolah_map.get(pilih_jenjang)
+df_rasio_sekolah_filtered = df_rasio_sekolah[df_rasio_sekolah['Jenjang'] == pilih_jenjang]
 
-if jenjang_terpilih_sekolah:
-    df_sekolah_filtered = df_sekolah[df_sekolah['Jenjang'] == jenjang_terpilih_sekolah]
-else:
-    # Jika karena alasan tertentu jenjang tidak ditemukan, ambil SD sebagai default
-    df_sekolah_filtered = df_sekolah[df_sekolah['Jenjang'] == 'Jumlah SD']
 
 if pilih_wilayah:
     df_filtered = df_filtered[df_filtered['Wilayah'].isin(pilih_wilayah)]
     df_rasio_filtered = df_rasio_filtered[df_rasio_filtered['Wilayah'].isin(pilih_wilayah)]
     df_rls_unique = df_rls_unique[df_rls_unique['Wilayah'].isin(pilih_wilayah)]
-    df_sekolah_filtered = df_sekolah_filtered[df_sekolah_filtered['Wilayah'].isin(pilih_wilayah)]
+    df_rasio_sekolah_filtered = df_rasio_sekolah_filtered[df_rasio_sekolah_filtered['Wilayah'].isin(pilih_wilayah)]
 
 df_filtered = df_filtered.sort_values(by = 'Nilai_APM', ascending=False)
 df_rls_unique = df_rls_unique.sort_values('Nilai_RLS', ascending=False) 
@@ -625,83 +656,81 @@ if not df_rasio_filtered.empty:
 # 🔹 VISUALISASI #5 — Perbandingan Jumlah Sekolah (Infrastruktur)
 # ====================================================================
 
-st.subheader("5. Perbandingan Jumlah Infrastruktur Sekolah")
+st.subheader("5. Rasio Murid per Sekolah per Kabupaten/Kota")
 st.markdown(f"""
-Visualisasi ini menunjukkan ketersediaan infrastruktur fisik (jumlah sekolah) 
-untuk jenjang **{pilih_jenjang}** di tiap kabupaten/kota.
+Rasio ini menunjukkan **jumlah murid rata-rata untuk setiap satu unit sekolah** di setiap kabupaten/kota.
+Nilai yang tinggi mengindikasikan kepadatan sekolah yang tinggi (potensi *overcrowding*).
 """)
 
-if df_sekolah_filtered.empty:
-    st.warning(f"Tidak ada data jumlah sekolah untuk jenjang {pilih_jenjang} (atau filter wilayah) yang dipilih.")
-else:
-    # Jika tidak ada wilayah dipilih, tampilkan semua
-    df_sekolah_sorted = df_sekolah_filtered.sort_values(by='Jumlah_Sekolah', ascending=False)
+if not df_rasio_sekolah_filtered.empty:
+    df_sorted = df_rasio_sekolah_filtered.sort_values(by='Rasio_Siswa_Sekolah', ascending=False)
+
     # Buat grouped bar chart
-    fig5_sekolah = px.bar(
-        df_sekolah_sorted,
-        x='Jumlah_Sekolah',
+    fig5 = px.bar(
+        df_sorted,
+        x='Rasio_Siswa_Sekolah',
         y='Wilayah',
         orientation='h',
-        barmode='group',           # <-- Ini membuat bar berdampingan
-        title=f'Peringkat Jumlah Sekolah (Jenjang {pilih_jenjang}) per Wilayah',
+        title=f'Peringkat Rasio Murid per Sekolah (Jenjang {pilih_jenjang}) per Wilayah',
         labels={
-            'Jumlah_Sekolah': f'Jumlah Sekolah ({pilih_jenjang})',
+            'Rasio_Siswa_Sekolah': f'Rasio Murid per Sekolah ({pilih_jenjang})',
             'Wilayah': 'Kabupaten/Kota',
         },
-        text='Jumlah_Sekolah',
-        color='Jumlah_Sekolah', # Requirement: Gradasi warna berdasarkan nilai
+        text='Rasio_Siswa_Sekolah',
+        color='Rasio_Siswa_Sekolah' # Requirement: Gradasi warna berdasarkan nilai
     )
 
     # Hitung rata-rata
-    avg_sekolah = df_sekolah_sorted['Jumlah_Sekolah'].mean()
+    rata2_rasio = df_rasio_sekolah_filtered['Rasio_Siswa_Sekolah'].mean()
 
-    # Tambahkan garis rata-rata
-    fig5_sekolah.add_vline(
-        x=avg_sekolah,
+    fig5.add_vline(
+        x=rata2_rasio,
         line_dash="dash",
         line_color="gray",
-        annotation_text=f"Rata-rata ({avg_sekolah:.0f})", # Format .0f (tanpa desimal)
+        annotation_text=f"Rata-rata: {rata2_rasio:.1f}",
         annotation_position="top",
         annotation_font_color="white"
     )
     
-    fig5_sekolah.update_traces(
-        texttemplate='%{text:.0f}', # Format .0f (angka bulat)
-        textfont=dict(color="white", size=12),
+    fig5.update_traces(
+        texttemplate='%{text:.1f}',
+        textfont=dict(color="white", size=11),
         textposition='outside',
         cliponaxis=False
     )
 
-    fig5_sekolah.update_layout(
-        yaxis={'categoryorder': 'total ascending'} 
+    fig5.update_layout(
+        yaxis={'categoryorder': 'total ascending'}
     )
-    
-    st.plotly_chart(fig5_sekolah, use_container_width=True)
+
+    st.plotly_chart(fig5, use_container_width=True)
 
     # --- Insight Otomatis ---
-    if not df_sekolah_sorted.empty:
+    if not df_sorted.empty:
         # Cari nilai Max dan Min
-        max_val = df_sekolah_sorted['Jumlah_Sekolah'].max()
-        min_val = df_sekolah_sorted['Jumlah_Sekolah'].min()
-        
+        max_val = df_sorted['Rasio_Siswa_Sekolah'].max()
+        min_val = df_sorted['Rasio_Siswa_Sekolah'].min()
+
         # Dapatkan SEMUA wilayah yang cocok dengan nilai Max
-        max_rows = df_sekolah_sorted[df_sekolah_sorted['Jumlah_Sekolah'] == max_val]
+        max_rows = df_sorted[df_sorted['Rasio_Siswa_Sekolah'] == max_val]
         max_wilayah_list = max_rows['Wilayah'].tolist()
         max_wilayah_str = ', '.join(max_wilayah_list)
         
         # Dapatkan SEMUA wilayah yang cocok dengan nilai Min
-        min_rows = df_sekolah_sorted[df_sekolah_sorted['Jumlah_Sekolah'] == min_val]
+        min_rows = df_sorted[df_sorted['Rasio_Siswa_Sekolah'] == min_val]
         min_wilayah_list = min_rows['Wilayah'].tolist()
         min_wilayah_str = ', '.join(min_wilayah_list)
 
         st.info(f"""
-        **Analisis Ketersediaan Infrastruktur (Jenjang {pilih_jenjang})**
-        - 📈 **Rata-rata:** {avg_sekolah:.0f} sekolah
-        - 🔺 **Tertinggi:** {max_wilayah_str} ({max_val} sekolah)
-        - 🔻 **Terendah:** {min_wilayah_str} ({min_val} sekolah)
+        **Rata-rata Rasio Murid per Sekolah (Jenjang {pilih_jenjang}):** {rata2_rasio:.1f}
+        - 🔺 **Tertinggi (Paling Padat):** {max_wilayah_str} ({max_val:.1f} murid/sekolah)
+        - 🔻 **Terendah (Paling Lengang):** {min_wilayah_str} ({min_val:.1f} murid/sekolah)
 
         *Insight: Analisis ini sekarang menunjukkan peringkat ketersediaan sekolah untuk jenjang yang Anda pilih.*
         """)
+
+else:
+    st.warning(f"Tidak ada data Rasio Murid per Sekolah untuk jenjang {pilih_jenjang}.")
     # --- AKHIR PERBAIKAN ---
 
 st.markdown("---")
