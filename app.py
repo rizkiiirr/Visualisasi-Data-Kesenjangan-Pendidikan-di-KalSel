@@ -1,32 +1,25 @@
-# ====================================================================
-# 🎓 DASHBOARD KESENJANGAN PENDIDIKAN KALIMANTAN SELATAN
-# ====================================================================
-# Dibuat oleh: Muhammad Rizki Ramadhan (Bubub)
-# Untuk: UTS Visualisasi Data
-# ====================================================================
 
-# --- 1. Import Library ---
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
-# --- 2. Konfigurasi Halaman ---
 st.set_page_config(
-    page_title="Dashboard Kesenjangan Pendidikan Kalsel",
-    page_icon="🎓",
+    page_title="Dashboard Kesenjangan Pendidikan per Kabupaten di Kalimantan Selatan",
     layout="wide"
+
 )
 
 # ====================================================================
-# 🔹 BAGIAN 1 — LOAD & CLEANING DATA
+# BAGIAN 1 — LOAD & CLEANING DATA
 # ====================================================================
 
-# Fungsi untuk memuat data APM
+# Memuat Data APM dan Membersihkannya
 @st.cache_data
 def load_data_apm(path):
     df = pd.read_csv(path, delimiter=';')
     
-    # Ganti nama kolom agar mudah digunakan
+    # Mengganti Nama Kolom agar Konsisten
     df = df.rename(columns={
         'Wilayah': 'Wilayah',
         'Nilai_APM': 'Nilai_APM',
@@ -87,8 +80,7 @@ def load_data_rasio(path):
     
     return df_long
 
-# [FUNGSI DIPERBARUI untuk RLS - Lebih Robust]
-# [FUNGSI RLS DIPERBARUI - Langsung pakai delimiter ';']
+# Fungsi untuk memuat dan membersihkan data RLS
 @st.cache_data
 def load_data_rls(url):
     """Memuat data Rata-rata Lama Sekolah (RLS) langsung dengan delimiter ';'"""
@@ -203,11 +195,14 @@ df_rls_unique = df_master[['Wilayah', 'Nilai_RLS']].drop_duplicates().sort_value
 # 🔹 BAGIAN 4 — KONTEN UTAMA
 # ====================================================================
 
-st.title("🎓 Analisis Kesenjangan Pendidikan Kalimantan Selatan")
-st.subheader(f"Menampilkan data: Angka Partisipasi Murni (APM), Rasio Murid per Guru — Jenjang {pilih_jenjang}, dan Rata-rata Lama Sekolah (RLS)")
-st.markdown("Dashboard ini menganalisis partisipasi pendidikan murni (APM), hasil historis (RLS), dan faktor sumber daya guru.")
+st.title("Analisis Kesenjangan Pendidikan per Kabupaten di Kalimantan Selatan")
+st.subheader(f"Menampilkan Data: ")
+st.subheader(f"1. Angka Partisipasi Murni (APM)")
+st.subheader(f"2. Rasio Murid per Guru — Jenjang {pilih_jenjang}")
+st.subheader(f"3. Rata-Rata Lama Sekolah (RLS)")
+st.markdown("Dashboard ini menganalisis partisipasi pendidikan murni, hasil historis rata-rata lama sekolah, dan faktor sumber daya guru per Kabupaten di Kalimantan Selatan.")
 # --- Konteks Studi Kasus ---
-with st.expander("📖 Konteks Studi Kasus & Pertanyaan Analitis"):
+with st.expander("Konteks Studi Kasus & Pertanyaan Analitis"):
     st.markdown("""
     **Konteks:**
     Pemerataan akses pendidikan adalah fondasi pembangunan SDM di Kalimantan Selatan.
@@ -218,14 +213,14 @@ with st.expander("📖 Konteks Studi Kasus & Pertanyaan Analitis"):
     1. Kabupaten/kota mana yang memiliki **partisipasi pendidikan tertinggi dan terendah**?
     2. Seberapa besar **kesenjangan gender** dalam partisipasi pendidikan?
     3. Bagaimana **rasio murid per guru** memengaruhi kesenjangan antar daerah?
-    4. Bagaimana **hasil pendidikan historis (RLS)** di tiap wilayah, dan apakah konsisten dengan APM saat ini? 
+    4. Bagaimana **hasil pendidikan historis (RLS)** di tiap wilayah dan apakah konsisten dengan APM saat ini? 
     """)
 
 # ====================================================================
 # 🔹 VISUALISASI #1 — Peringkat APM per Kabupaten/Kota
 # ====================================================================
 
-st.subheader(f"📊 Visualisasi #1: Peringkat APM Jenjang {pilih_jenjang}")
+st.subheader(f"1. Peringkat Angka Partisipasi Murni Jenjang {pilih_jenjang}")
 
 fig1 = px.bar(
     df_filtered,
@@ -234,43 +229,126 @@ fig1 = px.bar(
     orientation='h',
     title=f"Peringkat Angka Partisipasi Murni ({pilih_jenjang}) per Kabupaten/Kota",
     labels={'Nilai_APM': 'APM (%)', 'Wilayah': 'Kabupaten/Kota'},
-    text='Nilai_APM'
+    text='Nilai_APM',
+    color='Nilai_APM'
 )
+
+avg_apm = df_filtered['Nilai_APM'].mean()
+
+fig1.add_vline(
+    x=avg_apm,
+    line_dash="dash",
+    line_color="gray",
+    annotation_text=f"Rata-rata Provinsi ({avg_apm:.1f}%)",
+    annotation_position="bottom right",
+    annotation_font_color="white"
+)
+
+# --- PERUBAHAN DI SINI ---
+# Tambahkan baris ini untuk memindahkan teks ke LUAR batang
+# dan memformatnya menjadi 2 angka desimal (misal: 83.80)
+fig1.update_traces(texttemplate='%{text:.1f}%',
+    textfont=dict(color="white", size=11),
+    textposition='outside',
+    cliponaxis=False
+)
+# --- AKHIR PERUBAHAN ---
 
 fig1.update_layout(yaxis={'categoryorder': 'total ascending'})
 st.plotly_chart(fig1, use_container_width=True)
+
+st.info(f"""
+Kabupaten dengan partisipasi tertinggi: **{df_filtered.iloc[0]['Wilayah']} ({df_filtered.iloc[0]['Nilai_APM']:.1f}%)**  
+Terendah: **{df_filtered.iloc[-1]['Wilayah']} ({df_filtered.iloc[-1]['Nilai_APM']:.1f}%)**  
+Rata-rata Provinsi: **{avg_apm:.1f}%**
+""")
 st.markdown("---")
 
 # ====================================================================
-# 🔹 VISUALISASI #2 — Perbandingan APM antar Jenjang
+# 🔹 VISUALISASI #2 — Perbandingan APM antar Jenjang (Small Multiples)
 # ====================================================================
 
-st.subheader("📊 Visualisasi #2: Perbandingan APM Antar Jenjang per Wilayah")
+# --- PERUBAHAN DIMULAI DI SINI ---
+
+st.subheader("2. Perbandingan APM Antar Jenjang (Analisis Penurunan)")
+st.markdown("""
+Grafik ini menunjukkan **penurunan (drop-off)** partisipasi per wilayah. 
+Setiap kotak mewakili satu kabupaten/kota, menunjukkan dengan jelas tren dari SD ke SMP, dan ke SMA.
+""")
 
 df_vis2 = df_apm.copy()
 if pilih_wilayah:
     df_vis2 = df_vis2[df_vis2['Wilayah'].isin(pilih_wilayah)]
 
-fig2 = px.bar(
+# Menggunakan px.line dengan FACET_COL untuk membuat "Small Multiples"
+fig2 = px.line(
     df_vis2,
-    x='Wilayah',
+    x='Jenjang',
     y='Nilai_APM',
-    color='Jenjang',
-    barmode='group',
+    facet_col='Wilayah',        # Buat 1 chart per Wilayah
+    facet_col_wrap=6,         # Tampilkan 6 chart per baris
+    facet_col_spacing=0.03,  # <── jarak antar kolom (opsional)
     title="Perbandingan APM SD, SMP, dan SMA per Wilayah",
-    labels={'Nilai_APM': 'APM (%)', 'Wilayah': 'Kabupaten/Kota'},
-    category_orders={"Jenjang": ["SD", "SMP", "SMA"]}
+    labels={'Nilai_APM': 'APM (%)', 'Jenjang': 'Jenjang Pendidikan'},
+    category_orders={"Jenjang": ["SD", "SMP", "SMA"]},  # Memastikan urutan
+    markers=True,             # Tambahkan titik
+    text='Nilai_APM'            # Tambahkan label nilai
 )
 
-fig2.update_layout(xaxis_tickangle=-45)
+# Hitung batas atas Y agar label 99+ tidak terpotong
+max_apm = df_vis2['Nilai_APM'].max()
+fig2.update_yaxes(matches=None)  # biarkan tiap subplot punya sumbu Y independen
+fig2.for_each_yaxis(lambda axis: axis.update(range=[0, max_apm * 1.1]))  # tambahkan 10% ruang di atas
+
+# Mengatur format teks agar tidak tumpang tindih
+fig2.update_traces(texttemplate='%{text:.1f}', textposition='top center', line_width=3, marker_color='#38bdf8', marker=dict(size=6, color="#bae6fd", line=dict(width=1, color="white")))
+
+# Mengatur judul subplot (Wilayah) agar lebih rapi
+# (Menghapus "Wilayah=" dari setiap judul)
+fig2.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+
+# Mengatur tinggi chart agar tidak terlalu sempit
+fig2.update_layout(height=650) 
+
 st.plotly_chart(fig2, use_container_width=True)
+
+# Hitung rata-rata APM per jenjang
+rata_sd = df_apm[df_apm['Jenjang'] == 'SD']['Nilai_APM'].mean().round(2)
+rata_smp = df_apm[df_apm['Jenjang'] == 'SMP']['Nilai_APM'].mean().round(2)
+rata_sma = df_apm[df_apm['Jenjang'] == 'SMA']['Nilai_APM'].mean().round(2)
+
+# Hitung rata-rata penurunan antar jenjang
+penurunan_sd_smp = (rata_sd - rata_smp).round(2)
+penurunan_smp_sma = (rata_smp - rata_sma).round(2)
+
+# Tampilkan insight dalam bentuk teks deskriptif
+st.info(f"""
+**📊 Insight Analitis: Tren Penurunan APM Antar Jenjang**
+
+- Rata-rata APM jenjang **SD** di Kalimantan Selatan: **{rata_sd}%**
+- Rata-rata APM jenjang **SMP**: **{rata_smp}%**
+- Rata-rata APM jenjang **SMA**: **{rata_sma}%**
+
+Terjadi penurunan partisipasi pendidikan sebesar:
+- 🔻 **{penurunan_sd_smp}%** dari SD ke SMP  
+- 🔻 **{penurunan_smp_sma}%** dari SMP ke SMA
+
+💡 *Interpretasi:*  
+Semakin tinggi jenjang pendidikan, partisipasi murid cenderung menurun.  
+Penurunan paling signifikan terjadi pada transisi ke jenjang **SMA**,  
+yang dapat menunjukkan tantangan ekonomi, akses sekolah menengah atas,  
+atau motivasi belajar setelah jenjang wajib belajar selesai.
+""")
+
 st.markdown("---")
+
+# --- PERUBAHAN BERAKHIR DI SINI ---
 
 # ====================================================================
 # 🔹 VISUALISASI #3 — Kesenjangan Gender
 # ====================================================================
 
-st.subheader(f"📊 Visualisasi #3: Analisis Kesenjangan Gender (Jenjang {pilih_jenjang})")
+st.subheader(f"3. Analisis Kesenjangan Gender (Jenjang {pilih_jenjang})")
 
 fig3 = px.scatter(
     df_filtered,
@@ -285,7 +363,11 @@ fig3 = px.scatter(
         'Nilai_Perempuan': 'APM Perempuan (%)',
         'Kesenjangan_Gender': 'Kesenjangan (Perempuan - Laki-laki)'
     },
-    color_continuous_scale='RdBu_r'
+    color_continuous_scale=[
+    (0.0, "#3b82f6"),   # soft blue
+    (0.5, "#e2e8f0"),   # light gray
+    (1.0, "#f472b6")    # soft pink
+]
 )
 
 fig3.add_shape(
@@ -302,54 +384,130 @@ st.markdown("---")
 # 🔹 VISUALISASI #4 — Rasio Murid per Guru
 # ====================================================================
 
-st.subheader("📊 Visualisasi #4: Rasio Murid per Guru per Kabupaten/Kota")
+st.subheader("4. Rasio Murid per Guru per Kabupaten/Kota")
 st.markdown("""
 Rasio ini menunjukkan **jumlah murid rata-rata yang ditangani oleh satu guru** di setiap kabupaten/kota.
 Nilai yang tinggi mengindikasikan potensi kekurangan guru dan dapat berdampak pada kualitas pembelajaran.
 """)
 
-fig4 = px.bar(
-    df_rasio_filtered,
-    x='Wilayah',
-    y='Rasio_Murid_per_Guru',
-    color='Jenjang',
-    title=f"Rasio Murid per Guru — Jenjang {pilih_jenjang}",
-    labels={'Rasio_Murid_per_Guru': 'Jumlah Murid per 1 Guru', 'Wilayah': 'Kabupaten/Kota'},
-    text='Rasio_Murid_per_Guru'
+# --- Data ---
+df_sorted = df_rasio_filtered.sort_values(by='Rasio_Murid_per_Guru', ascending=True)
+x_vals = df_sorted['Rasio_Murid_per_Guru']
+y_vals = df_sorted['Wilayah']
+
+# --- Skala warna serupa dengan visualisasi nomor 1 ---
+# (Gradasi biru → hijau → kuning seperti pada color_continuous_scale di visualisasi #1)
+color_scale = [
+    (0.0, "#335eec"),  # biru (rendah)
+    (0.5, "#2bbdee"),  # hijau (sedang)
+    (1.0, "#ffffff")   # kuning (tinggi)
+]
+
+# --- Buat figure manual dengan skema warna serupa ---
+fig4 = go.Figure()
+
+fig4.add_trace(go.Bar(
+    x=x_vals,
+    y=y_vals,
+    orientation='h',
+    text=x_vals,
+    textposition='outside',
+    texttemplate='%{text:.1f}',
+    cliponaxis=False,
+    marker=dict(
+    color=x_vals,
+    colorscale=color_scale,
+    cmin=x_vals.min(),
+    cmax=x_vals.max(),
+    colorbar=dict(
+        title=dict(
+            text="Rasio Murid/Guru",         # teks judul colorbar
+            font=dict(color="white")         # warna font judul
+        ),
+        tickfont=dict(color="white"),        # warna angka/tick label
+        bgcolor="rgba(0,0,0,0)",             # latar transparan
+        outlinecolor="rgba(255,255,255,0.2)",# garis tipis pinggir
+        outlinewidth=1
+    )
+)
+))
+
+# --- Tambahkan garis rata-rata ---
+rata2_rasio = df_rasio_filtered['Rasio_Murid_per_Guru'].mean().round(2)
+fig4.add_vline(
+    x=rata2_rasio,
+    line_dash="dash",
+    line_color="gray",
+    annotation_text=f"Rata-rata: {rata2_rasio}",
+    annotation_position="bottom right",
+    annotation_font_color="white"
 )
 
-fig4.update_traces(texttemplate='%{text:.1f}', textposition='outside')
-fig4.update_layout(xaxis_tickangle=-45, showlegend=False)
+# --- Layout ---
+x_max = x_vals.max()
+fig4.update_layout(
+    title=f"Rasio Murid per Guru — Jenjang {pilih_jenjang}",
+    xaxis=dict(
+        title='Jumlah Murid per 1 Guru',
+        range=[0, x_max * 1.15],
+        color="white",
+        gridcolor='rgba(255,255,255,0.1)'
+    ),
+    yaxis=dict(
+        title='Kabupaten/Kota',
+        categoryorder='total ascending',
+        color="white"
+    ),
+    margin=dict(l=120, r=160, t=70, b=40),
+    showlegend=False,
+    height=520,
+    bargap=0.3,
+    plot_bgcolor='rgba(0,0,0,0)',
+    paper_bgcolor='rgba(0,0,0,0)',
+    font=dict(color="white")
+)
+
+fig4.update_traces(
+    texttemplate='%{text:.1f}',
+    textfont=dict(size=12, color="white"),
+    textposition='outside',
+    cliponaxis=False
+)
+
 st.plotly_chart(fig4, use_container_width=True)
 
-rata2_rasio = df_rasio_filtered['Rasio_Murid_per_Guru'].mean().round(2)
+# --- Statistik tambahan ---
 max_row = df_rasio_filtered.loc[df_rasio_filtered['Rasio_Murid_per_Guru'].idxmax()]
 min_row = df_rasio_filtered.loc[df_rasio_filtered['Rasio_Murid_per_Guru'].idxmin()]
 
 st.info(f"""
 **Rata-rata Rasio Murid per Guru (Jenjang {pilih_jenjang}):** {rata2_rasio}
-- 🔺 Tertinggi: {max_row['Wilayah']} ({max_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
-- 🔻 Terendah: {min_row['Wilayah']} ({min_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
+- 🔺 **Tertinggi:** {max_row['Wilayah']} ({max_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
+- 🔻 **Terendah:** {min_row['Wilayah']} ({min_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
 """)
+
 st.markdown("---")
 
 # ====================================================================
 # 🔹 VISUALISASI #5 — Peringkat Rata-rata Lama Sekolah (RLS)
 # ====================================================================
 
-st.subheader("📊 5. Peringkat Rata-rata Lama Sekolah (RLS) per Kabupaten/Kota")
+st.subheader("5. Peringkat Rata-rata Lama Sekolah (RLS) per Kabupaten/Kota")
 st.markdown("RLS mengukur capaian pendidikan historis penduduk dewasa (25 tahun ke atas).")
 if df_rls_unique.empty:
     st.warning("Data RLS tidak tersedia atau kosong.")
 else:
     fig5 = px.bar(
         df_rls_unique,
-        x='Nilai_RLS', y='Wilayah', orientation='h',
+        x='Nilai_RLS', 
+        y='Wilayah', 
+        orientation='h',
         title="Peringkat Rata-rata Lama Sekolah (RLS)",
-        labels={'Nilai_RLS': 'RLS (Tahun)', 'Wilayah': 'Kabupaten/Kota'},
-        text='Nilai_RLS'
+        labels={'Nilai_RLS': 'RLS (2020 - 2024)', 'Wilayah': 'Kabupaten/Kota'},
+        text='Nilai_RLS',
+        color='Nilai_RLS',
     )
-    fig5.update_traces(texttemplate='%{text:.2f}')
+    fig5.update_traces(texttemplate='%{text:.2f}', textposition='outside')
     fig5.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig5, use_container_width=True)
 st.markdown("---")
@@ -358,7 +516,7 @@ st.markdown("---")
 # 🔹 VISUALISASI #6 — RLS vs. APM SMA
 # ====================================================================
 
-st.subheader("📊 6. Analisis Konsistensi Kesenjangan: RLS vs. APM SMA")
+st.subheader("6. Analisis Konsistensi Kesenjangan: RLS vs. APM SMA")
 st.markdown("Membandingkan hasil pendidikan historis (RLS) dengan partisipasi SMA saat ini (APM SMA).")
 df_vis6 = df_master[df_master['Jenjang'] == 'SMA'][['Wilayah', 'Nilai_RLS', 'Nilai_APM']].drop_duplicates().dropna()
 if df_vis6.empty: st.warning("Data lengkap ('RLS' dan 'APM SMA') tidak tersedia.")
@@ -367,7 +525,8 @@ else:
         df_vis6, x='Nilai_RLS', y='Nilai_APM', hover_name='Wilayah',
         title="Konsistensi Kesenjangan: RLS vs APM SMA",
         labels={'Nilai_RLS': 'RLS (Hasil Historis)', 'Nilai_APM': 'APM SMA (Partisipasi Saat Ini)'},
-        size='Nilai_APM', color='Wilayah'
+        size='Nilai_APM', color='Wilayah',
+        color_continuous_scale='Viridis'
     )
     avg_rls_vis6 = df_vis6['Nilai_RLS'].mean(); avg_apm_sma_vis6 = df_vis6['Nilai_APM'].mean()
     fig6.add_vline(x=avg_rls_vis6, line=dict(color='grey', dash='dash'), annotation_text="Rata-rata RLS")
@@ -380,7 +539,7 @@ st.markdown("---")
 # 🔹 PENUTUP — INSIGHT & REKOMENDASI
 # ====================================================================
 
-st.subheader("🧠 Insight & Rekomendasi")
+st.subheader("Insight & Rekomendasi")
 
 st.markdown("""
 1. **Ketimpangan APM antar wilayah** cukup signifikan, terutama antara wilayah perkotaan dan pedesaan.
@@ -392,5 +551,3 @@ st.markdown("""
 - Perlu adanya **program retensi siswa SMA** di kabupaten dengan penurunan partisipasi signifikan.
 - Integrasikan data ini dengan data infrastruktur pendidikan (misal: jumlah sekolah & fasilitas) untuk analisis lanjutan.
 """)
-
-st.success("✅ Dashboard selesai! Anda telah memenuhi semua komponen UTS Visualisasi Data 🎉")
