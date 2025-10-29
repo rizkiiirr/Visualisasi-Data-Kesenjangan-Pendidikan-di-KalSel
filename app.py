@@ -198,7 +198,11 @@ def load_data_sekolah(path):
     )
     
     # Konversi tipe data untuk memastikan
-    df_long_sekolah['Jumlah_Sekolah'] = pd.to_numeric(df_long_sekolah['Jumlah_Sekolah'], errors='coerce').fillna(0)
+    df_long_sekolah['Jumlah_Sekolah'] = pd.to_numeric(df_long_sekolah['Jumlah_Sekolah'], errors='coerce')
+
+    df_long_sekolah = df_long_sekolah.dropna(subset=['Jumlah_Sekolah'])
+
+    df_long_sekolah['Jumlah_Sekolah'] = df_long_sekolah['Jumlah_Sekolah'].fillna(0).astype(int)
     
     return df_long_sekolah
 
@@ -263,7 +267,10 @@ st.sidebar.info(
     4. [Link Data Jumlah Guru dan Murid SD 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/VWtKTmFFbDZaSFJWWVhOYU16WmhaRzlCYlM5Wlp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-dasar--sd--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
     5. [Link Data Jumlah Guru dan Murid SMP 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/ZHpkb1ZtcDNZV2RHTlUweVdFZ3JhVkl3Ym1ScVp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-menengah-pertama--smp--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
     6. [Link Data Jumlah Guru dan Murid SMA 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/YTFsRmNubEhOWE5ZTUZsdWVHOHhMMFpPWm5VMFp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-menengah-atas--sma--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
-    7. [Link Data Rata-rata Lama Sekolah (RLS) 2024](https://kalsel.bps.go.id/id/statistics-table/2/MzYzIzI=/rata-rata-lama-sekolah--rls--menurut-jenis-kelamin--tahun-.html)
+    7. [Link Data Jumlah SD 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/VWtKTmFFbDZaSFJWWVhOYU16WmhaRzlCYlM5Wlp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-dasar--sd--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
+    8. [Link Data Jumlah SMP 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/ZHpkb1ZtcDNZV2RHTlUweVdFZ3JhVkl3Ym1ScVp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-menengah-pertama--smp--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
+    9. [Link Data Jumlah SMA 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/YTFsRmNubEhOWE5ZTUZsdWVHOHhMMFpPWm5VMFp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-menengah-atas--sma--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
+    10. [Link Data Rata-rata Lama Sekolah (RLS) 2024](https://kalsel.bps.go.id/id/statistics-table/2/MzYzIzI=/rata-rata-lama-sekolah--rls--menurut-jenis-kelamin--tahun-.html)
     """
 )
 
@@ -274,7 +281,18 @@ st.sidebar.info(
 df_filtered = df_apm[df_apm['Jenjang'] == pilih_jenjang]
 df_rasio_filtered = df_rasio[df_rasio['Jenjang'] == pilih_jenjang]
 df_rls_unique = df_master[['Wilayah', 'Nilai_RLS']].drop_duplicates().dropna()
-df_sekolah_filtered = df_sekolah.copy()
+jenjang_sekolah_map = {
+    'SD': 'Jumlah SD',
+    'SMP': 'Jumlah SMP',
+    'SMA': 'Jumlah SMA'
+}
+jenjang_terpilih_sekolah = jenjang_sekolah_map.get(pilih_jenjang)
+
+if jenjang_terpilih_sekolah:
+    df_sekolah_filtered = df_sekolah[df_sekolah['Jenjang'] == jenjang_terpilih_sekolah]
+else:
+    # Jika karena alasan tertentu jenjang tidak ditemukan, ambil SD sebagai default
+    df_sekolah_filtered = df_sekolah[df_sekolah['Jenjang'] == 'Jumlah SD']
 
 if pilih_wilayah:
     df_filtered = df_filtered[df_filtered['Wilayah'].isin(pilih_wilayah)]
@@ -608,56 +626,83 @@ if not df_rasio_filtered.empty:
 # ====================================================================
 
 st.subheader("5. Perbandingan Jumlah Infrastruktur Sekolah")
-st.markdown("""
+st.markdown(f"""
 Visualisasi ini menunjukkan ketersediaan infrastruktur fisik (jumlah sekolah) 
-untuk setiap jenjang di tiap kabupaten/kota. Ini membantu menjawab 
-apakah penurunan partisipasi (APM) disebabkan oleh kurangnya jumlah sekolah.
+untuk jenjang **{pilih_jenjang}** di tiap kabupaten/kota.
 """)
 
 if df_sekolah_filtered.empty:
-    st.warning(f"Tidak ada data jumlah sekolah untuk filter yang dipilih.")
+    st.warning(f"Tidak ada data jumlah sekolah untuk jenjang {pilih_jenjang} (atau filter wilayah) yang dipilih.")
 else:
     # Jika tidak ada wilayah dipilih, tampilkan semua
-    df_sekolah_filtered = df_sekolah.copy()
+    df_sekolah_sorted = df_sekolah_filtered.sort_values(by='Jumlah_Sekolah', ascending=False)
     # Buat grouped bar chart
     fig5_sekolah = px.bar(
-        df_sekolah_filtered,
-        x='Wilayah',
-        y='Jumlah_Sekolah',
-        color='Jenjang',           # <-- Ini akan membuat grup SD, SMP, SMA
+        df_sekolah_sorted,
+        x='Jumlah_Sekolah',
+        y='Wilayah',
+        orientation='h',
         barmode='group',           # <-- Ini membuat bar berdampingan
-        title='Perbandingan Jumlah Sekolah (SD, SMP, SMA) per Wilayah',
+        title=f'Peringkat Jumlah Sekolah (Jenjang {pilih_jenjang}) per Wilayah',
         labels={
-            'Jumlah_Sekolah': 'Jumlah Sekolah (Negeri & Swasta)',
+            'Jumlah_Sekolah': f'Jumlah Sekolah ({pilih_jenjang})',
             'Wilayah': 'Kabupaten/Kota',
-            'Jenjang': 'Jenjang Pendidikan'
         },
         text='Jumlah_Sekolah',
-        category_orders={"Jenjang": ["Jumlah SD", "Jumlah SMP", "Jumlah SMA"]} # <-- Memastikan urutan
+        color='Jumlah_Sekolah', # Requirement: Gradasi warna berdasarkan nilai
+    )
+
+    # Hitung rata-rata
+    avg_sekolah = df_sekolah_sorted['Jumlah_Sekolah'].mean()
+
+    # Tambahkan garis rata-rata
+    fig5_sekolah.add_vline(
+        x=avg_sekolah,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"Rata-rata ({avg_sekolah:.0f})", # Format .0f (tanpa desimal)
+        annotation_position="top",
+        annotation_font_color="white"
     )
     
-    fig5_sekolah.update_traces(textposition='outside')
+    fig5_sekolah.update_traces(
+        texttemplate='%{text:.0f}', # Format .0f (angka bulat)
+        textfont=dict(color="white", size=12),
+        textposition='outside',
+        cliponaxis=False
+    )
+
     fig5_sekolah.update_layout(
-        xaxis={'categoryorder':'total descending'},
-        font=dict(size=14) # <-- Sesuaikan ukuran font jika perlu
+        yaxis={'categoryorder': 'total ascending'} 
     )
     
     st.plotly_chart(fig5_sekolah, use_container_width=True)
 
     # --- Insight Otomatis ---
-    # Hitung total untuk insight
-    total_sd = df_sekolah_filtered[df_sekolah_filtered['Jenjang'] == 'Jumlah SD']['Jumlah_Sekolah'].sum()
-    total_smp = df_sekolah_filtered[df_sekolah_filtered['Jenjang'] == 'Jumlah SMP']['Jumlah_Sekolah'].sum()
-    total_sma = df_sekolah_filtered[df_sekolah_filtered['Jenjang'] == 'Jumlah SMA']['Jumlah_Sekolah'].sum()
+    if not df_sekolah_sorted.empty:
+        # Cari nilai Max dan Min
+        max_val = df_sekolah_sorted['Jumlah_Sekolah'].max()
+        min_val = df_sekolah_sorted['Jumlah_Sekolah'].min()
+        
+        # Dapatkan SEMUA wilayah yang cocok dengan nilai Max
+        max_rows = df_sekolah_sorted[df_sekolah_sorted['Jumlah_Sekolah'] == max_val]
+        max_wilayah_list = max_rows['Wilayah'].tolist()
+        max_wilayah_str = ', '.join(max_wilayah_list)
+        
+        # Dapatkan SEMUA wilayah yang cocok dengan nilai Min
+        min_rows = df_sekolah_sorted[df_sekolah_sorted['Jumlah_Sekolah'] == min_val]
+        min_wilayah_list = min_rows['Wilayah'].tolist()
+        min_wilayah_str = ', '.join(min_wilayah_list)
 
-    st.info(f"""
-    **Analisis Ketersediaan Infrastruktur (Total dari Wilayah Terfilter)**
-    - 🏫 **Total Sekolah SD:** {total_sd} unit
-    - 🏫 **Total Sekolah SMP:** {total_smp} unit
-    - 🏫 **Total Sekolah SMA:** {total_sma} unit
+        st.info(f"""
+        **Analisis Ketersediaan Infrastruktur (Jenjang {pilih_jenjang})**
+        - 📈 **Rata-rata:** {avg_sekolah:.0f} sekolah
+        - 🔺 **Tertinggi:** {max_wilayah_str} ({max_val} sekolah)
+        - 🔻 **Terendah:** {min_wilayah_str} ({min_val} sekolah)
 
-    *Insight: Perhatikan wilayah dengan jumlah SMP yang banyak namun jumlah SMA yang sedikit. Ini bisa menjadi salah satu penyebab utama 'drop-off' partisipasi di jenjang SMA.*
-    """)
+        *Insight: Analisis ini sekarang menunjukkan peringkat ketersediaan sekolah untuk jenjang yang Anda pilih.*
+        """)
+    # --- AKHIR PERBAIKAN ---
 
 st.markdown("---")
 
