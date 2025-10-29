@@ -5,10 +5,24 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 st.set_page_config(
-    page_title="Dashboard Kesenjangan Pendidikan per Kabupaten di Kalimantan Selatan",
+    page_title="Dashboard Kesenjangan Partisipasi Pendidikan per Kabupaten di Kalimantan Selatan",
     layout="wide"
-
 )
+
+st.markdown("""
+<style>
+html, body, [class*="css"] {
+   font-size: 1.1rem !important; 
+}
+/* Anda juga bisa spesifik perbesar judul */
+.stTitle {
+    font-size: 2.8rem !important;
+}
+.stSubheader {
+    font-size: 2.0rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ====================================================================
 # BAGIAN 1 — LOAD & CLEANING DATA
@@ -76,6 +90,7 @@ def load_data_rasio(path):
     
     # Ganti nama kolom agar seragam
     df_long = df_long.rename(columns={'kabupaten_kota': 'Wilayah'})
+    df_long['Wilayah'] = df_long['Wilayah'].str.upper().str.strip()
     df_long['Rasio_Murid_per_Guru'] = df_long['Rasio_Murid_per_Guru'].round(2)
     
     return df_long
@@ -139,6 +154,55 @@ def load_data_rls(url):
         st.error(f"Error saat memuat Data RLS ('{url}'): {e}")
         st.exception(e) # Tampilkan traceback lengkap
         return pd.DataFrame()
+    
+    # --- (Letakkan ini di BAGIAN 1, setelah fungsi 'load_data_rls') ---
+
+# Fungsi untuk memuat data jumlah sekolah
+@st.cache_data
+def load_data_sekolah(path):
+    """Memuat data jumlah sekolah dari file Rasio Guru"""
+    df_s = pd.read_csv(path, delimiter=';')
+    df_s.columns = df_s.columns.str.strip().str.lower()
+    
+    # Hapus baris kosong dan total provinsi
+    df_s = df_s.dropna(subset=['kabupaten_kota'])
+    df_s = df_s[~df_s['kabupaten_kota'].astype(str).str.contains('selatan', case=False, na=False)]
+    
+    # Pilih kolom yang relevan
+    cols_to_keep = [
+        'kabupaten_kota', 
+        'jumlah_sekolah_sd_negeriswasta', 
+        'jumlah_sekolah_smp_negeriswasta', 
+        'jumlah_sekolah_sma_negeriswasta'
+    ]
+    df_s = df_s[cols_to_keep]
+    
+    # Ganti nama kolom agar lebih mudah dibaca
+    df_s = df_s.rename(columns={
+        'kabupaten_kota': 'Wilayah',
+        'jumlah_sekolah_sd_negeriswasta': 'Jumlah SD',
+        'jumlah_sekolah_smp_negeriswasta': 'Jumlah SMP',
+        'jumlah_sekolah_sma_negeriswasta': 'Jumlah SMA'
+    })
+    
+    # STANDARISASI: Ubah Wilayah ke UPPERCASE agar filter berfungsi
+    df_s['Wilayah'] = df_s['Wilayah'].str.upper().str.strip()
+    
+    # Ubah ke format long (ideal untuk grouped bar chart)
+    df_long_sekolah = pd.melt(
+        df_s,
+        id_vars=['Wilayah'],
+        value_vars=['Jumlah SD', 'Jumlah SMP', 'Jumlah SMA'],
+        var_name='Jenjang',
+        value_name='Jumlah_Sekolah'
+    )
+    
+    # Konversi tipe data untuk memastikan
+    df_long_sekolah['Jumlah_Sekolah'] = pd.to_numeric(df_long_sekolah['Jumlah_Sekolah'], errors='coerce').fillna(0)
+    
+    return df_long_sekolah
+
+# --- (Akhir dari blok 1) ---
 
 # --- Load kedua dataset ---
 DATA_APM = 'Data_APM_Bersih.csv'
@@ -148,14 +212,17 @@ DATA_RLS = 'Data_RLS_Bersih.csv'
 df_apm = load_data_apm(DATA_APM)
 df_rasio = load_data_rasio(DATA_RASIO)
 df_rls = load_data_rls(DATA_RLS)
+df_sekolah = load_data_sekolah(DATA_RASIO)
 
 # --- Gabungkan Data ---
 DATA_LOADED_SUCCESS = False
-if not df_apm.empty and not df_rasio.empty and not df_rls.empty:
+if not df_apm.empty and not df_rasio.empty and not df_rls.empty and not df_sekolah.empty:
     # Gabungkan APM + Rasio
     df_master = pd.merge(df_apm, df_rasio, on=['Wilayah', 'Jenjang'], how='left')
     # Gabungkan dengan RLS (hanya berdasarkan Wilayah)
     df_master = pd.merge(df_master, df_rls, on='Wilayah', how='left')
+    # Gabungkan dengan Sekolah (hanya berdasarkan Wilayah dan Jenjang)
+    df_master = pd.merge(df_master, df_sekolah, on=['Wilayah', 'Jenjang'], how='left')
     DATA_LOADED_SUCCESS = True
 
     # Validasi setelah merge
@@ -183,26 +250,49 @@ pilih_wilayah = st.sidebar.multiselect(
     placeholder="Tampilkan Semua Wilayah"
 )
 
+# Tambahkan baris-baris ini di akhir sidebar
+st.sidebar.markdown("---")
+st.sidebar.header("Sumber Data")
+st.sidebar.info(
+    """
+    Semua data yang digunakan bersumber dari Badan Pusat Statistik (BPS) Kalimantan Selatan.
+
+    1. [Link Data APM Jenjang SD/Sederajat 2024](https://kalsel.bps.go.id/id/statistics-table/2/NzkjMg==/angka-partisipasi-murni--apm--sd-mi-sederajat-menurut-jenis-kelamin-dan-kabupaten-kota-di-provinsi-kalimantan-selatan--persen-.html)
+    2. [Link Data APM Jenjang SMP/Sederajat 2024](https://kalsel.bps.go.id/id/statistics-table/2/ODEjMg==/angka-partisipasi-murni--apm--smp-mts-sederajat-menurut-jenis-kelamin-dan-kabupaten-kota-di-provinsi-kalimantan-selatan--persen-.html)
+    3. [Link Data APM Jenjang SMA/Sederajat 2024](https://kalsel.bps.go.id/id/statistics-table/2/ODIjMg==/angka-partisipasi-murni--apm--sma-smk-ma-sederajat-menurut-jenis-kelamin-dan-kabupaten-kota-di-provinsi-kalimantan-selatan--persen-.html)
+    4. [Link Data Jumlah Guru dan Murid SD 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/VWtKTmFFbDZaSFJWWVhOYU16WmhaRzlCYlM5Wlp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-dasar--sd--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
+    5. [Link Data Jumlah Guru dan Murid SMP 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/ZHpkb1ZtcDNZV2RHTlUweVdFZ3JhVkl3Ym1ScVp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-menengah-pertama--smp--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
+    6. [Link Data Jumlah Guru dan Murid SMA 2024/2025](https://kalsel.bps.go.id/id/statistics-table/3/YTFsRmNubEhOWE5ZTUZsdWVHOHhMMFpPWm5VMFp6MDkjMyM2MzAw/jumlah-sekolah--guru--dan-murid-sekolah-menengah-atas--sma--di-bawah-kementerian-pendidikan--kebudayaan--riset--dan-teknologi-menurut-kabupaten-kota-di-provinsi-kalimantan-selatan.html?year=2024)
+    7. [Link Data Rata-rata Lama Sekolah (RLS) 2024](https://kalsel.bps.go.id/id/statistics-table/2/MzYzIzI=/rata-rata-lama-sekolah--rls--menurut-jenis-kelamin--tahun-.html)
+    """
+)
+
 # ====================================================================
 # 🔹 BAGIAN 3 — DATA FILTERING
 # ====================================================================
 
-df_filtered = df_apm[df_apm['Jenjang'] == pilih_jenjang].sort_values(by='Nilai_APM', ascending=False)
+df_filtered = df_apm[df_apm['Jenjang'] == pilih_jenjang]
 df_rasio_filtered = df_rasio[df_rasio['Jenjang'] == pilih_jenjang]
-df_rls_unique = df_master[['Wilayah', 'Nilai_RLS']].drop_duplicates().sort_values('Nilai_RLS', ascending=False).dropna()
+df_rls_unique = df_master[['Wilayah', 'Nilai_RLS']].drop_duplicates().dropna()
+df_sekolah_filtered = df_sekolah.copy()
 
+if pilih_wilayah:
+    df_filtered = df_filtered[df_filtered['Wilayah'].isin(pilih_wilayah)]
+    df_rasio_filtered = df_rasio_filtered[df_rasio_filtered['Wilayah'].isin(pilih_wilayah)]
+    df_rls_unique = df_rls_unique[df_rls_unique['Wilayah'].isin(pilih_wilayah)]
+    df_sekolah_filtered = df_sekolah_filtered[df_sekolah_filtered['Wilayah'].isin(pilih_wilayah)]
+
+df_filtered = df_filtered.sort_values(by = 'Nilai_APM', ascending=False)
+df_rls_unique = df_rls_unique.sort_values('Nilai_RLS', ascending=False) 
+   
 # ====================================================================
 # 🔹 BAGIAN 4 — KONTEN UTAMA
 # ====================================================================
 
-st.title("Analisis Kesenjangan Pendidikan per Kabupaten di Kalimantan Selatan")
-st.subheader(f"Menampilkan Data: ")
-st.subheader(f"1. Angka Partisipasi Murni (APM)")
-st.subheader(f"2. Rasio Murid per Guru — Jenjang {pilih_jenjang}")
-st.subheader(f"3. Rata-Rata Lama Sekolah (RLS)")
-st.markdown("Dashboard ini menganalisis partisipasi pendidikan murni, hasil historis rata-rata lama sekolah, dan faktor sumber daya guru per Kabupaten di Kalimantan Selatan.")
+st.title("Analisis Kesenjangan Partisipasi Pendidikan per Kabupaten di Kalimantan Selatan")
+st.markdown("Dashboard ini menganalisis partisipasi pendidikan murni, faktor sumber daya guru, dan hasil historis rata-rata lama sekolah per Kabupaten di Kalimantan Selatan.")
 # --- Konteks Studi Kasus ---
-with st.expander("Konteks Studi Kasus & Pertanyaan Analitis"):
+with st.expander("Studi Kasus"):
     st.markdown("""
     **Konteks:**
     Pemerataan akses pendidikan adalah fondasi pembangunan SDM di Kalimantan Selatan.
@@ -214,8 +304,9 @@ with st.expander("Konteks Studi Kasus & Pertanyaan Analitis"):
     2. Seberapa besar **kesenjangan gender** dalam partisipasi pendidikan?
     3. Bagaimana **rasio murid per guru** memengaruhi kesenjangan antar daerah?
     4. Bagaimana **hasil pendidikan historis (RLS)** di tiap wilayah dan apakah konsisten dengan APM saat ini? 
+    5. Apa langkah strategis yang dapat diambil untuk mengurangi kesenjangan ini?            
     """)
-
+st.markdown("---")
 # ====================================================================
 # 🔹 VISUALISASI #1 — Peringkat APM per Kabupaten/Kota
 # ====================================================================
@@ -240,7 +331,7 @@ fig1.add_vline(
     line_dash="dash",
     line_color="gray",
     annotation_text=f"Rata-rata Provinsi ({avg_apm:.1f}%)",
-    annotation_position="bottom right",
+    annotation_position="top",
     annotation_font_color="white"
 )
 
@@ -322,6 +413,8 @@ penurunan_sd_smp = (rata_sd - rata_smp).round(2)
 penurunan_smp_sma = (rata_smp - rata_sma).round(2)
 
 # Tampilkan insight dalam bentuk teks deskriptif
+# GANTI st.info yang ada di bawah Visualisasi #2 dengan ini:
+
 st.info(f"""
 **📊 Insight Analitis: Tren Penurunan APM Antar Jenjang**
 
@@ -378,6 +471,24 @@ fig3.add_shape(
 )
 
 st.plotly_chart(fig3, use_container_width=True)
+
+# Tambahkan kode ini di bawah Visualisasi #3
+if not df_filtered.empty:
+    avg_gap = df_filtered['Kesenjangan_Gender'].mean().round(2)
+    max_gap_row = df_filtered.loc[df_filtered['Kesenjangan_Gender'].idxmax()]
+    min_gap_row = df_filtered.loc[df_filtered['Kesenjangan_Gender'].idxmin()]
+
+    st.info(f"""
+    **Analisis Kesenjangan Gender (Jenjang {pilih_jenjang})**
+    - 📈 **Rata-rata Kesenjangan:** {avg_gap} (Positif = Perempuan Unggul)
+    - 🔺 **Partisipasi Perempuan Tertinggi:** {max_gap_row['Wilayah']} (Kesenjangan: +{max_gap_row['Kesenjangan_Gender']})
+    - 🔻 **Partisipasi Laki-laki Tertinggi:** {min_gap_row['Wilayah']} (Kesenjangan: {min_gap_row['Kesenjangan_Gender']})
+
+    *Kesenjangan gender bervariasi; tidak ada pola konsisten di mana satu gender selalu tertinggal di semua wilayah.*
+    """)
+else:
+    st.warning(f"Tidak ada data Kesenjangan Gender untuk filter yang dipilih.")
+
 st.markdown("---")
 
 # ====================================================================
@@ -389,110 +500,174 @@ st.markdown("""
 Rasio ini menunjukkan **jumlah murid rata-rata yang ditangani oleh satu guru** di setiap kabupaten/kota.
 Nilai yang tinggi mengindikasikan potensi kekurangan guru dan dapat berdampak pada kualitas pembelajaran.
 """)
+if not df_rasio_filtered.empty:
+    # --- Data ---
+    df_sorted = df_rasio_filtered.sort_values(by='Rasio_Murid_per_Guru', ascending=True)
+    x_vals = df_sorted['Rasio_Murid_per_Guru']
+    y_vals = df_sorted['Wilayah']
 
-# --- Data ---
-df_sorted = df_rasio_filtered.sort_values(by='Rasio_Murid_per_Guru', ascending=True)
-x_vals = df_sorted['Rasio_Murid_per_Guru']
-y_vals = df_sorted['Wilayah']
+    # --- Skala warna serupa dengan visualisasi nomor 1 ---
+    # (Gradasi biru → hijau → kuning seperti pada color_continuous_scale di visualisasi #1)
+    color_scale = [
+        (0.0, "#335eec"),  # biru (rendah)
+        (0.5, "#2bbdee"),  # hijau (sedang)
+        (1.0, "#ffffff")   # kuning (tinggi)
+    ]
 
-# --- Skala warna serupa dengan visualisasi nomor 1 ---
-# (Gradasi biru → hijau → kuning seperti pada color_continuous_scale di visualisasi #1)
-color_scale = [
-    (0.0, "#335eec"),  # biru (rendah)
-    (0.5, "#2bbdee"),  # hijau (sedang)
-    (1.0, "#ffffff")   # kuning (tinggi)
-]
+    # --- Buat figure manual dengan skema warna serupa ---
+    fig4 = go.Figure()
 
-# --- Buat figure manual dengan skema warna serupa ---
-fig4 = go.Figure()
-
-fig4.add_trace(go.Bar(
-    x=x_vals,
-    y=y_vals,
-    orientation='h',
-    text=x_vals,
-    textposition='outside',
-    texttemplate='%{text:.1f}',
-    cliponaxis=False,
-    marker=dict(
-    color=x_vals,
-    colorscale=color_scale,
-    cmin=x_vals.min(),
-    cmax=x_vals.max(),
-    colorbar=dict(
-        title=dict(
-            text="Rasio Murid/Guru",         # teks judul colorbar
-            font=dict(color="white")         # warna font judul
-        ),
-        tickfont=dict(color="white"),        # warna angka/tick label
-        bgcolor="rgba(0,0,0,0)",             # latar transparan
-        outlinecolor="rgba(255,255,255,0.2)",# garis tipis pinggir
-        outlinewidth=1
+    fig4.add_trace(go.Bar(
+        x=x_vals,
+        y=y_vals,
+        orientation='h',
+        text=x_vals,
+        textposition='outside',
+        texttemplate='%{text:.1f}',
+        cliponaxis=False,
+        marker=dict(
+        color=x_vals,
+        colorscale=color_scale,
+        cmin=x_vals.min(),
+        cmax=x_vals.max(),
+        colorbar=dict(
+            title=dict(
+                text="Rasio Murid/Guru",         # teks judul colorbar
+                font=dict(color="white")         # warna font judul
+            ),
+            tickfont=dict(color="white"),        # warna angka/tick label
+            bgcolor="rgba(0,0,0,0)",             # latar transparan
+            outlinecolor="rgba(255,255,255,0.2)",# garis tipis pinggir
+            outlinewidth=1
+        )
     )
-)
-))
+    ))
 
-# --- Tambahkan garis rata-rata ---
-rata2_rasio = df_rasio_filtered['Rasio_Murid_per_Guru'].mean().round(2)
-fig4.add_vline(
-    x=rata2_rasio,
-    line_dash="dash",
-    line_color="gray",
-    annotation_text=f"Rata-rata: {rata2_rasio}",
-    annotation_position="bottom right",
-    annotation_font_color="white"
-)
+    # --- Tambahkan garis rata-rata ---
+    rata2_rasio = df_rasio_filtered['Rasio_Murid_per_Guru'].mean().round(2)
+    fig4.add_vline(
+        x=rata2_rasio,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"Rata-rata: {rata2_rasio}",
+        annotation_position="top",
+        annotation_font_color="white"
+    )
 
-# --- Layout ---
-x_max = x_vals.max()
-fig4.update_layout(
-    title=f"Rasio Murid per Guru — Jenjang {pilih_jenjang}",
-    xaxis=dict(
-        title='Jumlah Murid per 1 Guru',
-        range=[0, x_max * 1.15],
-        color="white",
-        gridcolor='rgba(255,255,255,0.1)'
-    ),
-    yaxis=dict(
-        title='Kabupaten/Kota',
-        categoryorder='total ascending',
-        color="white"
-    ),
-    margin=dict(l=120, r=160, t=70, b=40),
-    showlegend=False,
-    height=520,
-    bargap=0.3,
-    plot_bgcolor='rgba(0,0,0,0)',
-    paper_bgcolor='rgba(0,0,0,0)',
-    font=dict(color="white")
-)
+    # --- Layout ---
+    x_max = x_vals.max()
+    fig4.update_layout(
+        title=f"Rasio Murid per Guru — Jenjang {pilih_jenjang}",
+        xaxis=dict(
+            title='Jumlah Murid per 1 Guru',
+            range=[0, x_max * 1.15],
+            color="white",
+            gridcolor='rgba(255,255,255,0.1)'
+        ),
+        yaxis=dict(
+            title='Kabupaten/Kota',
+            categoryorder='total ascending',
+            color="white"
+        ),
+        margin=dict(l=120, r=160, t=70, b=40),
+        showlegend=False,
+        height=520,
+        bargap=0.3,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color="white")
+    )
 
-fig4.update_traces(
-    texttemplate='%{text:.1f}',
-    textfont=dict(size=12, color="white"),
-    textposition='outside',
-    cliponaxis=False
-)
+    fig4.update_traces(
+        texttemplate='%{text:.1f}',
+        textfont=dict(size=12, color="white"),
+        textposition='outside',
+        cliponaxis=False
+    )
 
-st.plotly_chart(fig4, use_container_width=True)
+    st.plotly_chart(fig4, use_container_width=True)
 
-# --- Statistik tambahan ---
-max_row = df_rasio_filtered.loc[df_rasio_filtered['Rasio_Murid_per_Guru'].idxmax()]
-min_row = df_rasio_filtered.loc[df_rasio_filtered['Rasio_Murid_per_Guru'].idxmin()]
+    # --- Statistik tambahan ---
+    max_row = df_rasio_filtered.loc[df_rasio_filtered['Rasio_Murid_per_Guru'].idxmax()]
+    min_row = df_rasio_filtered.loc[df_rasio_filtered['Rasio_Murid_per_Guru'].idxmin()]
 
-st.info(f"""
-**Rata-rata Rasio Murid per Guru (Jenjang {pilih_jenjang}):** {rata2_rasio}
-- 🔺 **Tertinggi:** {max_row['Wilayah']} ({max_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
-- 🔻 **Terendah:** {min_row['Wilayah']} ({min_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
+    st.info(f"""
+    **Rata-rata Rasio Murid per Guru (Jenjang {pilih_jenjang}):** {rata2_rasio}
+    - 🔺 **Tertinggi:** {max_row['Wilayah']} ({max_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
+    - 🔻 **Terendah:** {min_row['Wilayah']} ({min_row['Rasio_Murid_per_Guru']:.1f} murid/guru)
+    """) 
+
+    # Tampilkan pesan jika tidak ada data
+
+    st.markdown("---")
+
+# --- (Letakkan ini di BAGIAN 4, misalnya setelah Viz #4 dan sebelum Viz #5) ---
+
+# ====================================================================
+# 🔹 VISUALISASI #5 — Perbandingan Jumlah Sekolah (Infrastruktur)
+# ====================================================================
+
+st.subheader("5. Perbandingan Jumlah Infrastruktur Sekolah")
+st.markdown("""
+Visualisasi ini menunjukkan ketersediaan infrastruktur fisik (jumlah sekolah) 
+untuk setiap jenjang di tiap kabupaten/kota. Ini membantu menjawab 
+apakah penurunan partisipasi (APM) disebabkan oleh kurangnya jumlah sekolah.
 """)
+
+if df_sekolah_filtered.empty:
+    st.warning(f"Tidak ada data jumlah sekolah untuk filter yang dipilih.")
+else:
+    # Jika tidak ada wilayah dipilih, tampilkan semua
+    df_sekolah_filtered = df_sekolah.copy()
+    # Buat grouped bar chart
+    fig5_sekolah = px.bar(
+        df_sekolah_filtered,
+        x='Wilayah',
+        y='Jumlah_Sekolah',
+        color='Jenjang',           # <-- Ini akan membuat grup SD, SMP, SMA
+        barmode='group',           # <-- Ini membuat bar berdampingan
+        title='Perbandingan Jumlah Sekolah (SD, SMP, SMA) per Wilayah',
+        labels={
+            'Jumlah_Sekolah': 'Jumlah Sekolah (Negeri & Swasta)',
+            'Wilayah': 'Kabupaten/Kota',
+            'Jenjang': 'Jenjang Pendidikan'
+        },
+        text='Jumlah_Sekolah',
+        category_orders={"Jenjang": ["Jumlah SD", "Jumlah SMP", "Jumlah SMA"]} # <-- Memastikan urutan
+    )
+    
+    fig5_sekolah.update_traces(textposition='outside')
+    fig5_sekolah.update_layout(
+        xaxis={'categoryorder':'total descending'},
+        font=dict(size=14) # <-- Sesuaikan ukuran font jika perlu
+    )
+    
+    st.plotly_chart(fig5_sekolah, use_container_width=True)
+
+    # --- Insight Otomatis ---
+    # Hitung total untuk insight
+    total_sd = df_sekolah_filtered[df_sekolah_filtered['Jenjang'] == 'Jumlah SD']['Jumlah_Sekolah'].sum()
+    total_smp = df_sekolah_filtered[df_sekolah_filtered['Jenjang'] == 'Jumlah SMP']['Jumlah_Sekolah'].sum()
+    total_sma = df_sekolah_filtered[df_sekolah_filtered['Jenjang'] == 'Jumlah SMA']['Jumlah_Sekolah'].sum()
+
+    st.info(f"""
+    **Analisis Ketersediaan Infrastruktur (Total dari Wilayah Terfilter)**
+    - 🏫 **Total Sekolah SD:** {total_sd} unit
+    - 🏫 **Total Sekolah SMP:** {total_smp} unit
+    - 🏫 **Total Sekolah SMA:** {total_sma} unit
+
+    *Insight: Perhatikan wilayah dengan jumlah SMP yang banyak namun jumlah SMA yang sedikit. Ini bisa menjadi salah satu penyebab utama 'drop-off' partisipasi di jenjang SMA.*
+    """)
 
 st.markdown("---")
 
+# --- (Akhir dari blok 3) ---
+
 # ====================================================================
-# 🔹 VISUALISASI #5 — Peringkat Rata-rata Lama Sekolah (RLS)
+# 🔹 VISUALISASI #6 — Peringkat Rata-rata Lama Sekolah (RLS)
 # ====================================================================
 
-st.subheader("5. Peringkat Rata-rata Lama Sekolah (RLS) per Kabupaten/Kota")
+st.subheader("6. Peringkat Rata-rata Lama Sekolah (RLS) per Kabupaten/Kota")
 st.markdown("RLS mengukur capaian pendidikan historis penduduk dewasa (25 tahun ke atas).")
 if df_rls_unique.empty:
     st.warning("Data RLS tidak tersedia atau kosong.")
@@ -503,20 +678,48 @@ else:
         y='Wilayah', 
         orientation='h',
         title="Peringkat Rata-rata Lama Sekolah (RLS)",
-        labels={'Nilai_RLS': 'RLS (2020 - 2024)', 'Wilayah': 'Kabupaten/Kota'},
+        labels={'Nilai_RLS': 'RLS (Tahun)', 'Wilayah': 'Kabupaten/Kota'},
         text='Nilai_RLS',
         color='Nilai_RLS',
     )
+
+    avg_rls = df_rls_unique['Nilai_RLS'].mean().round(2)
+    fig5.add_vline(
+        x=avg_rls,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"Rata-rata: {avg_rls}",
+        annotation_position="top",
+        annotation_font_color="white"
+    )
+
     fig5.update_traces(texttemplate='%{text:.2f}', textposition='outside')
     fig5.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig5, use_container_width=True)
+
+    # ... (kode st.plotly_chart(fig5) sudah ada)
+    
+    # Tambahkan perhitungan ini di dalam blok 'else' Viz #5
+    avg_rls = df_rls_unique['Nilai_RLS'].mean().round(2)
+    max_rls_row = df_rls_unique.loc[df_rls_unique['Nilai_RLS'].idxmax()]
+    min_rls_row = df_rls_unique.loc[df_rls_unique['Nilai_RLS'].idxmin()]
+
+    st.info(f"""
+    **Analisis Rata-rata Lama Sekolah (RLS) per Wilayah**
+    - 📈 **Rata-rata RLS Se-Kalsel:** {avg_rls} tahun
+    - 🔺 **RLS Tertinggi:** {max_rls_row['Wilayah']} ({max_rls_row['Nilai_RLS']:.2f} tahun)
+    - 🔻 **RLS Terendah:** {min_rls_row['Wilayah']} ({min_rls_row['Nilai_RLS']:.2f} tahun)
+
+    *RLS menunjukkan capaian pendidikan historis penduduk 25+ tahun. Angka ~8-9 tahun berarti rata-rata lulusan SMP, ~11-12 tahun lulusan SMA.*
+    """)
+
 st.markdown("---")
 
 # ====================================================================
-# 🔹 VISUALISASI #6 — RLS vs. APM SMA
+# 🔹 VISUALISASI #7 — RLS vs. APM SMA
 # ====================================================================
 
-st.subheader("6. Analisis Konsistensi Kesenjangan: RLS vs. APM SMA")
+st.subheader("7. Analisis Konsistensi Kesenjangan: RLS vs. APM SMA")
 st.markdown("Membandingkan hasil pendidikan historis (RLS) dengan partisipasi SMA saat ini (APM SMA).")
 df_vis6 = df_master[df_master['Jenjang'] == 'SMA'][['Wilayah', 'Nilai_RLS', 'Nilai_APM']].drop_duplicates().dropna()
 if df_vis6.empty: st.warning("Data lengkap ('RLS' dan 'APM SMA') tidak tersedia.")
@@ -531,8 +734,40 @@ else:
     avg_rls_vis6 = df_vis6['Nilai_RLS'].mean(); avg_apm_sma_vis6 = df_vis6['Nilai_APM'].mean()
     fig6.add_vline(x=avg_rls_vis6, line=dict(color='grey', dash='dash'), annotation_text="Rata-rata RLS")
     fig6.add_hline(y=avg_apm_sma_vis6, line=dict(color='grey', dash='dash'), annotation_text="Rata-rata APM SMA")
+    # ... (kode fig6)
+
     st.plotly_chart(fig6, use_container_width=True)
-    st.markdown("""**Cara Membaca Grafik:** *(Kuadran Kiri Bawah: Masalah Persisten)*""")
+    
+    # --- UBAH BLOK INI UNTUK MEMPERJELAS ANOMALI ---
+    st.subheader("Cara Membaca Grafik (Analisis Kuadran)")
+    st.markdown("""
+    Garis rata-rata membagi grafik menjadi empat kuadran yang menunjukkan konsistensi (atau anomali) antara capaian historis (RLS) dan partisipasi saat ini (APM SMA):
+
+    -   **Kuadran Kanan Atas (Ideal):** RLS tinggi & APM SMA tinggi.
+        Wilayah ini memiliki capaian historis yang baik dan partisipasi saat ini yang juga tinggi.
+
+    -   **Kuadran Kiri Bawah (Masalah Persisten):** RLS rendah & APM SMA rendah.
+        Wilayah ini memiliki tantangan ganda: capaian historis rendah dan partisipasi saat ini juga masih rendah.
+
+    -   **Kuadran Kiri Atas (Anomali Positif):** RLS rendah & APM SMA tinggi.
+        *Wilayah ini berhasil mendorong partisipasi sekolah (APM) saat ini meskipun capaian pendidikan historis (RLS) penduduknya rendah.*
+        
+    -   **Kuadran Kanan Bawah (Anomali Negatif / Peringatan):** RLS tinggi & APM SMA rendah.
+        *Wilayah ini memiliki capaian pendidikan historis yang baik, namun partisipasi SMA saat ini justru rendah. Ini adalah anomali yang perlu investigasi.*
+    """)
+    # --- AKHIR PERUBAHAN ---
+
+    # ... (kode st.plotly_chart(fig6) sudah ada)
+    
+    # Tambahkan ini di dalam blok 'else' Viz #6
+    st.info(f"""
+    **Analisis Konsistensi (RLS vs. APM SMA)**
+    - 📈 **Rata-rata RLS (Garis Vertikal):** {avg_rls_vis6:.2f} tahun
+    - 📈 **Rata-rata APM SMA (Garis Horizontal):** {avg_apm_sma_vis6:.2f}%
+
+    *Insight utama adalah anomali: Wilayah di kuadran **kanan bawah** (RLS tinggi, APM rendah) seperti KOTA BANJARMASIN menunjukkan ketidakselarasan antara capaian historis yang baik dan partisipasi SMA saat ini yang rendah.*
+    """)
+
 st.markdown("---")
 
 # ====================================================================
